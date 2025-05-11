@@ -1,0 +1,1 @@
+/home/hallow/coding/rust/rust.nix
