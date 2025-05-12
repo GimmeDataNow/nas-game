@@ -1,7 +1,9 @@
+mod error;
+use error::NasError;
 use clap::{Arg, ArgAction, ArgMatches, Command};
-use serde::Deserialize;
-use toml;
-use std::fs;
+use serde::{Deserialize, Serialize};
+use ron;
+use std::{fs, path::Path};
 
 
 fn main() {
@@ -52,19 +54,43 @@ fn main() {
     };
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ServerSettings {
+    #[serde(default)]
     ip: String,
-    port: Option<u16>,
-    
+    port: u16,
+}
+
+impl Default for ServerSettings {
+    fn default() -> Self { Self { ip: "172.0.0.1".to_owned(), port: 7843 } }
+}
+
+
+pub fn write_server_settings(path: &Path, settings: Option<ServerSettings>) {
+    let settings = settings.unwrap_or_default();
+
+    let settings_serialized = ron::to_string(&settings).unwrap(); // TODO: error handling
+    fs::write(path, settings_serialized).unwrap(); // TODO: error handling
 }
 
 pub fn server(args: &ArgMatches) {
-
-    // let settings_file = fs::read_to_string("server_config.toml").unwrap_or_else(op); 
+    let path = Path::new("server_settings.ron");
+    let server_settings : ServerSettings = get_server_settings(path).unwrap_or_else( |_| {
+        println!("server settings could not be found at {:?}", path);
+        ServerSettings::default()
+    });
 
     if args.get_flag("info") {
-        
+        println!("The server is starting with the following settings:");
+        println!("File location: {:#?}", path);
+        println!("{:#?}", server_settings);
     };
-    
+    if args.get_flag("start") {
+        // TODO: start the server here
+    }   
+}
+
+pub fn get_server_settings(path: &Path) -> Result<ServerSettings, NasError> {
+    let file = fs::read_to_string(path)?;
+    ron::from_str::<ServerSettings>(&file).map_err(|_| NasError::FailedToParse)
 }

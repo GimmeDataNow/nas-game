@@ -8,4 +8,11 @@ toml = "0.8.22"
 actix-web = "4"
 clap = "4.5.38"
 serde = { version = "1.0.219", features = ["derive", "serde_derive"]}
+ron = "0.8"
+
+
+# log
+log = "0.4.22"
+colored = "2"
+chrono = "0.4.38"
 
