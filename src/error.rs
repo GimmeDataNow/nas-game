@@ -1,6 +1,8 @@
 pub enum NasError {
     FailedToReadFile,
     FailedToParse,
+    FailedToSerialize,
+    FailedToWrite,
     Ignore,
     
 }
@@ -10,7 +12,5 @@ impl From<std::io::Error> for NasError {
 }
 
 impl From<ron::error::SpannedError> for NasError {
-    fn from(value: ron::error::SpannedError) -> Self {
-        Self::Ignore
-    }
+    fn from(value: ron::error::SpannedError) -> Self { Self::Ignore }
 }
