@@ -1,12 +1,14 @@
 use crate::error::NasError;
-use std::{path::Path, sync::Mutex};
+use std::sync::Mutex;
+use std::path::{Path, PathBuf};
 use std::fs;
 use std::collections::HashMap;
 use std::sync::Arc;
 use actix_web::http::StatusCode;
 use clap::ArgMatches;
 use serde::{Serialize, Deserialize};
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use ron;
+use actix_web::{get, post, web, App, HttpResponse, HttpResponseBuilder, HttpServer, Responder};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServerSettings {
@@ -32,7 +34,7 @@ pub fn write_server_settings(path: &Path, settings: Option<ServerSettings>) -> R
 }
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
 pub enum Launcher {
     Steam,
     Gog,
@@ -40,7 +42,7 @@ pub enum Launcher {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Game {
     launcher: Launcher,
     id: String, 
@@ -83,15 +85,17 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
     };
     if args.get_flag("start") {
         println!("server started");
-        println!("{:#?}", Game::new(Launcher::Steam, "wow".to_owned()));
         let gamelib = web::Data::new(GameLibrary::new());
+        let filelocation = web::Data::new(PathBuf::from("game_library.ron"));
         return HttpServer::new(move || {
             App::new()
                 .app_data(gamelib.clone())
+                .app_data(filelocation.clone())
                 .service(hello)
                 .service(echo)
                 .service(add_dummy_get)
                 .service(add_to_games)
+                .service(save_library)
         })
         .bind((server_settings.ip, server_settings.port))?
         .run()
@@ -127,5 +131,20 @@ async fn add_to_games(data: web::Data<GameLibrary>, games: web::Json<Vec<Game>>)
         }
     }
     println!("{} games have been added", &counter);
-    HttpResponse::build(StatusCode::OK).body("x games have been added")
+    HttpResponse::build(StatusCode::OK).body(format!("{} games have been added", &counter))
+}
+
+#[post("/save_library")]
+async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<GameLibrary>) -> impl Responder {
+    let lib = data.collection.lock().unwrap();
+    let game_lib = match ron::to_string(&*lib) {
+        Ok(s) => s,
+        Err(_) => return HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).body("Failed to serialize")
+    };
+    match fs::write(&**filelocation, game_lib) {
+        Ok(_) => (),
+        Err(_) => return HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).body("Failed to write to file")
+    }
+    println!("saved library");
+    HttpResponse::build(StatusCode::OK).body("library has been saved")
 }
