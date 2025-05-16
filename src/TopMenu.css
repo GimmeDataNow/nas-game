@@ -15,6 +15,24 @@ button {
   outline: none;
 }
 
+a {
+  margin 3px;
+  padding: 2px;
+  background-color: green;
+  border-radius: 10px;
+}
+
+.main-pages {
+  
+}
+
+.active-link {
+  background-color: yellow;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
 .misc {
   display: flex;
 }
+
