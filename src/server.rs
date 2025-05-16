@@ -1,6 +1,6 @@
 use crate::error::NasError;
 use crate::{trace, info, warn, error, fatal, logging, logging::LoggingLevel, logging::logging_function};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::collections::HashMap;
@@ -11,6 +11,13 @@ use serde::{Serialize, Deserialize};
 use ron;
 use actix_web::{get, post, web, App, HttpResponse, HttpResponseBuilder, HttpServer, Responder};
 
+const DEFAULT_GAME_LIB_PATH: &str = "game_library.ron";
+const DEFAULT_SERVER_SETTINGS_PATH: &str = "server_settings.ron";
+const DEFAULT_IP_ADDR: &str = "127.0.0.1";
+const DEFAULT_IP_PORT: u16 = 55317;
+const DEFAULT_GAME_LIBRARY_STR: &str = "[]";
+
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServerSettings {
     #[serde(default)]
@@ -19,7 +26,7 @@ pub struct ServerSettings {
 }
 
 impl Default for ServerSettings {
-    fn default() -> Self { Self { ip: "127.0.0.1".to_owned(), port: 53317} }
+    fn default() -> Self { Self { ip: DEFAULT_IP_ADDR.to_owned(), port: DEFAULT_IP_PORT} }
 }
 
 pub fn get_server_settings(path: &Path) -> Result<ServerSettings, NasError> {
@@ -42,7 +49,6 @@ pub enum Launcher {
     EpicGames
 }
 
-#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Game {
     launcher: Launcher,
@@ -55,44 +61,63 @@ impl Game {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GameLibrary {
     collection: Mutex<Vec<Game>>, // TODO: explore if a hashset is a better choice
 }
 
 impl GameLibrary {
+    #[allow(dead_code)]
     pub fn new() -> Self { Self { collection: Mutex::new(Vec::new()) } }
 }
 
 #[actix_web::main]
 pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
-    let path = Path::new("./server_settings.ron");
+    let path = Path::new(DEFAULT_SERVER_SETTINGS_PATH);
     let server_settings : ServerSettings = get_server_settings(path).unwrap_or_else( |_| {
-        // println!("server settings could not be found at {:?}", path);
         info!(&format!("Server settings could not be found at {:?}", path));
         ServerSettings::default()
     });
-
     if args.get_flag("default") {
         // generate and write the defaults for the server
         let _ = write_server_settings(path, None).unwrap_or_else(|e| {
-            println!("Failed to print with: {:?}", e); // TODO: add an early escape if this fails
-
+            error!(&format!("Failed to override settings with {:?}", e)); // TODO: add an early escape if this fails
         });
     }
     if args.get_flag("info") {
-        // vomit out the info
-        // println!("The server is starting with the following settings:");
         info!(&format!("Server config location at {:?}", path));
-        // println!("File location: {:#?}", path);
-        // println!("{:#?}", server_settings);
         info!(&format!("Server settings are: {:?}", server_settings));
     };
     if args.get_flag("start") {
-        // println!("server started");
         info!(&format!("Server started"));
-        let gamelib = web::Data::new(GameLibrary::new());
-        let filelocation = web::Data::new(PathBuf::from("./game_library.ron"));
+        let game_library_path = PathBuf::from(DEFAULT_GAME_LIB_PATH);
+        let game_library_path_str = match game_library_path.to_str() {
+            Some(s) => s,
+            None => {
+                error!(&format!("Failed to load the game library path from {:?}", game_library_path));
+                info!(&format!("Falling back to default game library path with {:?}", DEFAULT_GAME_LIB_PATH));
+                DEFAULT_GAME_LIB_PATH
+            },
+        };
+        let game_library_file = match fs::read_to_string(game_library_path_str) {
+            Ok(s) => s,
+            Err(e) => {
+                error!(&format!("Failed to read file with: {:?}", e));
+                info!(&format!("Falling back to default value with {:?}", DEFAULT_GAME_LIBRARY_STR));
+                DEFAULT_GAME_LIBRARY_STR.to_owned()
+            },
+        };
+        let raw_gamelib: Vec<Game> = match ron::from_str::<Vec<Game>>(&game_library_file) {
+            Ok(s) => s,
+            Err(_) => {
+                error!(&format!("Failed to deserialize the game library from: {:?}", game_library_path_str));
+                info!(&format!("Falling back to default game library"));
+                Vec::new()
+            }
+        };
+        let gamelib = web::Data::new(GameLibrary { collection: Mutex::new(raw_gamelib)}); 
+        // let gamelib1 = web::Data::new(GameLibrary::new());ii
+        let filelocation = web::Data::new(PathBuf::from("game_library.ron"));
         return HttpServer::new(move || {
             App::new()
                 .app_data(gamelib.clone())
@@ -136,15 +161,18 @@ async fn add_to_games(data: web::Data<GameLibrary>, games: web::Json<Vec<Game>>)
             counter += 1;
         }
     }
-    // println!("{} games have been added", &counter);
     info!(&format!("Added {} to in-memory game library", &counter));
     HttpResponse::build(StatusCode::OK).body(format!("{} games have been added", &counter))
 }
 
 #[post("/save_library")]
 async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<GameLibrary>) -> impl Responder {
-    let lib = data.collection.lock().unwrap();
-    let game_lib = match ron::to_string(&*lib) {
+    let lib = match data.collection.lock() {
+        Ok(s) => s.clone(),
+        Err(_) => return HttpResponse::InternalServerError().body("")
+    };
+    // the Vec<Game> is used because Mutexes are not serializable
+    let game_lib = match ron::to_string::<Vec<Game>>(&lib) {
         Ok(s) => s,
         Err(_) => return HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).body("Failed to serialize")
     };
@@ -152,7 +180,6 @@ async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<GameLibr
         Ok(_) => (),
         Err(_) => return HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).body("Failed to write to file")
     }
-    // println!("saved library");
-    info!(&format!("Saved in-memory library to {:?}", &**filelocation));
+    info!(&format!("Saved in-memory library to {:?}", filelocation.as_path()));
     HttpResponse::build(StatusCode::OK).body("library has been saved")
 }
