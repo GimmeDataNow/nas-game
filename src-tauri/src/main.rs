@@ -6,6 +6,7 @@ mod server;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 
 fn main() {
+    nas_game_lib::run();
     let cmd = Command::new("nas-game")
         // .multicall(true) # no need for it yet
         .about("NAS game manager and launcher")
@@ -44,7 +45,9 @@ fn main() {
 
     match cmd.subcommand() {
         #[allow(unused_variables)]
-        Some(("client", args)) => println!("TODO: show the settings"),
+        Some(("client", args)) => {
+            
+        },
         Some(("server", args)) => {
             let _ = server::server(&args);
         },

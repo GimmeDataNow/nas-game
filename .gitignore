@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 /target
 game_library.ron
+=======
+node_modules
+dist
+>>>>>>> 95c5656 (added tauri)
