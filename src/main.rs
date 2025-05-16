@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 mod error;
+mod logging;
 use error::NasError;
 mod server;
 use clap::{Arg, ArgAction, ArgMatches, Command};

@@ -1,4 +1,5 @@
 use crate::error::NasError;
+use crate::{trace, info, warn, error, fatal, logging, logging::LoggingLevel, logging::logging_function};
 use std::sync::Mutex;
 use std::path::{Path, PathBuf};
 use std::fs;
@@ -67,7 +68,8 @@ impl GameLibrary {
 pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
     let path = Path::new("./server_settings.ron");
     let server_settings : ServerSettings = get_server_settings(path).unwrap_or_else( |_| {
-        println!("server settings could not be found at {:?}", path);
+        // println!("server settings could not be found at {:?}", path);
+        info!(&format!("Server settings could not be found at {:?}", path));
         ServerSettings::default()
     });
 
@@ -75,18 +77,22 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
         // generate and write the defaults for the server
         let _ = write_server_settings(path, None).unwrap_or_else(|e| {
             println!("Failed to print with: {:?}", e); // TODO: add an early escape if this fails
+
         });
     }
     if args.get_flag("info") {
         // vomit out the info
-        println!("The server is starting with the following settings:");
-        println!("File location: {:#?}", path);
-        println!("{:#?}", server_settings);
+        // println!("The server is starting with the following settings:");
+        info!(&format!("Server config location at {:?}", path));
+        // println!("File location: {:#?}", path);
+        // println!("{:#?}", server_settings);
+        info!(&format!("Server settings are: {:?}", server_settings));
     };
     if args.get_flag("start") {
-        println!("server started");
+        // println!("server started");
+        info!(&format!("Server started"));
         let gamelib = web::Data::new(GameLibrary::new());
-        let filelocation = web::Data::new(PathBuf::from("game_library.ron"));
+        let filelocation = web::Data::new(PathBuf::from("./game_library.ron"));
         return HttpServer::new(move || {
             App::new()
                 .app_data(gamelib.clone())
@@ -130,7 +136,8 @@ async fn add_to_games(data: web::Data<GameLibrary>, games: web::Json<Vec<Game>>)
             counter += 1;
         }
     }
-    println!("{} games have been added", &counter);
+    // println!("{} games have been added", &counter);
+    info!(&format!("Added {} to in-memory game library", &counter));
     HttpResponse::build(StatusCode::OK).body(format!("{} games have been added", &counter))
 }
 
@@ -145,6 +152,7 @@ async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<GameLibr
         Ok(_) => (),
         Err(_) => return HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).body("Failed to write to file")
     }
-    println!("saved library");
+    // println!("saved library");
+    info!(&format!("Saved in-memory library to {:?}", &**filelocation));
     HttpResponse::build(StatusCode::OK).body("library has been saved")
 }
