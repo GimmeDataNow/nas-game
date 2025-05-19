@@ -5,9 +5,10 @@
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  align-items: center;
 }
 
-button {
+.navigation > a > button {
   background-color: transparent;
   background-repeat: no-repeat;
   border: none;
@@ -15,24 +16,55 @@ button {
   outline: none;
 }
 
-a {
-  margin 3px;
-  padding: 2px;
-  background-color: green;
-  border-radius: 10px;
+.navigation > a {
+  padding: 5px;
+  margin-right: 10px;
+  border-radius: 8px;
 }
-
-.main-pages {
-  
-}
-
 .active-link {
   background-color: yellow;
-  font-weight: bold;
-  text-decoration: underline;
 }
 
-.misc {
+a {
+  /* background-color: green; */
+}
+img {
+  vertical-align: middle;
+}
+
+.misc-grouping {
+  display:flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.window-management-buttons {
+  margin-left: 5px;
+}
+
+.window-management-buttons > a {
+  margin-left: 15px;
+}
+.window-management-buttons > a > img {
+  width: 16px;
+}
+
+.misc-links {
+  display:flex;
+  flex-direction: row;
+}
+
+.misc-links > a {
+  margin-left: 4px;
+  padding: 8px;
   display: flex;
+  border-radius: 6px;
+  border-style: solid;
+  border-width: 1px;
+  border-color: gray;
 }
 
+.misc-links > a > img {
+  width: 14px;
+  height: 14px;
+}

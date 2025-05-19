@@ -1,8 +1,6 @@
 /* @refresh reload */
-import { createSignal } from "solid-js";
-import logo from "./assets/logo.svg";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
+import LibrarySearch from "./LibrarySearch.jsx";
 import TopMenu from "./TopMenu.jsx";
 
 function App() {
@@ -10,6 +8,7 @@ function App() {
   return (
     <main class="container">
       <TopMenu/>
+      <LibrarySearch/>
       This is the library      
     </main>
   );

@@ -3,6 +3,7 @@ pkgs.mkShell {
   shellHook = ''
     alias build="cargo build"
     alias run="cargo run"
+    alias trun="pnpm run tauri dev"
 
     echo "You are now in a rust shell"
     echo "Currently in $(pwd)"
@@ -19,6 +20,7 @@ pkgs.mkShell {
   ];
 
   buildInputs = with pkgs; [
+    typescript-language-server
     rustc
     pnpm
     gtk3

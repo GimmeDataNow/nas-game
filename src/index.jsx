@@ -1,7 +1,6 @@
 /* @refresh reload */
 import { render } from "solid-js/web";
 import { Router, Route, Navigate } from "@solidjs/router";
-import App from "./App";
 import Overview from "./Overview.jsx";
 import Library from "./Library.jsx";
 import Screenshots from "./Screenshots.jsx";
