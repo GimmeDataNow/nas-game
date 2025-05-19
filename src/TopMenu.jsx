@@ -16,7 +16,7 @@ function App() {
   return (
     <div class="topmenu">
       <div class="navigation">
-         <A href="/overview"    class="main-pages" activeClass="active-link" end><button>Overview</button></A>
+         <A href="/overview"    class="main-pages overview-button" activeClass="active-link" end><button>Overview</button></A>
          <A href="/library"     class="main-pages" activeClass="active-link" end><button>Library</button></A>
          <A href="/screenshots" class="main-pages" activeClass="active-link" end><button>Screenshots</button></A>
          <A href="/settings"    class="main-pages" activeClass="active-link" end><button>Settings</button></A>
