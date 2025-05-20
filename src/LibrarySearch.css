@@ -1,10 +1,19 @@
+:root {
+  --columns: 7; /* number of columns */
+  --item-size: 150px; /* base size, scales uniformly */
+  --library-item-wrapper-width-aspect-ratio: 3;
+  --library-item-wrapper-height-aspect-ratio: 4;
+}
+
+
+
 .lib-search-filtering {
   width: 100%;
   padding-top: 30px;
   padding-bottom: 10px;
   display: flex;
   flex-direction: row;
-  justify-content: center;
+  /* justify-content: center; */
   align-items: center;
   justify-content: space-between;
 }
@@ -71,4 +80,70 @@
 
 .icon {
   width: 16px;
+}
+
+.library-list {
+  display: grid;
+  /* grid-template-columns: repeat(8, 1fr); */
+  grid-template-columns: repeat(var(--columns), minmax(var(--item-size), 1fr));
+}
+
+.library-item-wrapper {
+  display: block;
+  position: relative;
+  margin: 5px;
+  border-radius: 6px;
+  aspect-ratio: var(--library-item-wrapper-width-aspect-ratio) / var(--library-item-wrapper-height-aspect-ratio);
+
+  /* needed or the slide in will escape the boundaries */
+  overflow: hidden;
+}
+
+.library-item-wrapper .library-item-pop-over-wrapper {
+
+  /* needed to make it behave properly */
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 6px;
+
+  /* slide in form below with a slightly black background */
+  opacity: 0;
+  transform: translateY(100%);
+  background: rgba(0, 0, 0, 0.6);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+
+  /* styling inside of the element */
+  color: white;
+  padding: 10px;
+
+  display: flex;
+  justify-content: space-between;
+  /* align-items: center; */
+
+  flex-direction: column;
+}
+
+.library-item-wrapper:hover .library-item-pop-over-wrapper {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.library-item-pop-over-game-title {
+  text-align: center;
+}
+
+.library-item-pop-over-play-and-stats {
+  width: 100%;
+}
+
+.library-item-pop-over-buttons {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row;
+}
+.library-item-pop-over-buttons > * {
+  flex-grow: 1;
 }

@@ -9,7 +9,7 @@ import Plus from './assets/plus.svg';
 import Grid2x2 from './assets/grid-2x2.svg';
 import List from './assets/list.svg';
 import Slider from './assets/sliders-horizontal.svg';
-
+import LibraryItem from './LibraryItem.jsx';
 
 function App() {
 
@@ -40,7 +40,27 @@ function App() {
             This is the library
 
       <div class="library-list">
-        List goes here
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+        <LibraryItem/>
+
       </div>
     </main>
   );
