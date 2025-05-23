@@ -21,6 +21,7 @@ pkgs.mkShell {
 
   buildInputs = with pkgs; [
     typescript-language-server
+    rust-analyzer
     rustc
     pnpm
     gtk3

@@ -1,8 +1,27 @@
 /* @refresh reload */
 import { createSignal, onMount } from "solid-js";
+const images = import.meta.glob('./../assets/*.{webp,png,jpg,jpeg}', { import: 'default' });
+
 import fallbackImg from './../assets/Hollow_Knight_cover_art.webp';
 import ExternalLink  from "./../assets/external-link.svg"; 
 import Play from "./../assets/play.svg"; 
+
+export async function getImagePath(filename) {
+  for (const path in images) {
+    if (path.endsWith(filename)) {
+      console.log(`Attempting to import image: ${path}`);
+      try {
+        const mod = await images[path]();
+        console.log(`Resolved ${filename} to ${mod}`);
+        return mod;
+      } catch (err) {
+        console.error(`Error loading image: ${filename}`, err);
+      }
+    }
+  }
+  console.warn(`Image not found for filename: ${filename}`);
+  return null;
+}
 
 
 function Card(props) {
@@ -13,12 +32,20 @@ function Card(props) {
 
   const [bgImage, setBgImage] = createSignal(fallbackImg);
 
-  onMount(() => {
+  onMount(async () => {
     if (props.imgPath) {
-      const img = new Image();
-      img.src = props.imgPath;
-      img.onload = () => setBgImage(props.imgPath);
-      img.onerror = () => setBgImage(fallbackImg);
+    const resolvedPath = await getImagePath(props.imgPath);
+
+      if (resolvedPath) {
+        const img = new Image();
+        img.src = resolvedPath;
+        img.onload = () => setBgImage(resolvedPath);
+        img.onerror = () => setBgImage(fallbackImg);
+      } else {
+        setBgImage(fallbackImg);
+      }
+    } else {
+      setBgImage(fallbackImg);
     }
   });
 

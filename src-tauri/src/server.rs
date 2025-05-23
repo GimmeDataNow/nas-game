@@ -1,5 +1,6 @@
 use crate::error::NasError;
 use crate::{trace, info, warn, error, fatal, logging, logging::LoggingLevel, logging::logging_function};
+use crate::types::{Launcher, Game, GameLibrary};
 use std::sync::{Mutex, MutexGuard};
 use std::path::{Path, PathBuf};
 use std::fs;
@@ -8,13 +9,14 @@ use std::sync::Arc;
 use actix_web::http::StatusCode;
 use clap::ArgMatches;
 use serde::{Serialize, Deserialize};
-use ron;
+// use ron;
+use serde_json;
 use actix_web::{get, post, web, App, HttpResponse, HttpResponseBuilder, HttpServer, Responder};
 
-const DEFAULT_GAME_LIB_PATH: &str = "game_library.ron";
-const DEFAULT_SERVER_SETTINGS_PATH: &str = "server_settings.ron";
+const DEFAULT_GAME_LIB_PATH: &str = "game_library.json";
+const DEFAULT_SERVER_SETTINGS_PATH: &str = "server_settings.json";
 const DEFAULT_IP_ADDR: &str = "127.0.0.1";
-const DEFAULT_IP_PORT: u16 = 55317;
+const DEFAULT_IP_PORT: u16 = 53317;
 const DEFAULT_GAME_LIBRARY_STR: &str = "[]";
 
 
@@ -31,44 +33,14 @@ impl Default for ServerSettings {
 
 pub fn get_server_settings(path: &Path) -> Result<ServerSettings, NasError> {
     let file = fs::read_to_string(path)?;
-    ron::from_str::<ServerSettings>(&file).map_err(|_| NasError::FailedToParse)
+    serde_json::from_str::<ServerSettings>(&file).map_err(|_| NasError::FailedToParse)
 }
 
 pub fn write_server_settings(path: &Path, settings: Option<ServerSettings>) -> Result<(), NasError> {
     let settings = settings.unwrap_or_default();
-    let settings_serialized = ron::to_string(&settings).map_err(|_| NasError::FailedToSerialize)?;
+    let settings_serialized = serde_json::to_string(&settings).map_err(|_| NasError::FailedToSerialize)?;
     fs::write(path, settings_serialized).map_err(|_| NasError::FailedToWrite)?;
     Ok(())
-}
-
-#[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
-pub enum Launcher {
-    Steam,
-    Gog,
-    EpicGames
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-pub struct Game {
-    launcher: Launcher,
-    id: String, 
-}
-
-impl Game {
-    #[allow(dead_code)]
-    pub fn new(launcher: Launcher, id: String) -> Self { Self { launcher, id } }
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Serialize)]
-pub struct GameLibrary {
-    collection: Mutex<Vec<Game>>, // TODO: explore if a hashset is a better choice
-}
-
-impl GameLibrary {
-    #[allow(dead_code)]
-    pub fn new() -> Self { Self { collection: Mutex::new(Vec::new()) } }
 }
 
 #[actix_web::main]
@@ -107,7 +79,7 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
                 DEFAULT_GAME_LIBRARY_STR.to_owned()
             },
         };
-        let raw_gamelib: Vec<Game> = match ron::from_str::<Vec<Game>>(&game_library_file) {
+        let raw_gamelib: Vec<Game> = match serde_json::from_str::<Vec<Game>>(&game_library_file) {
             Ok(s) => s,
             Err(_) => {
                 error!(&format!("Failed to deserialize the game library from: {:?}", game_library_path_str));
@@ -117,7 +89,7 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
         };
         let gamelib = web::Data::new(GameLibrary { collection: Mutex::new(raw_gamelib)}); 
         // let gamelib1 = web::Data::new(GameLibrary::new());ii
-        let filelocation = web::Data::new(PathBuf::from("game_library.ron"));
+        let filelocation = web::Data::new(PathBuf::from("game_library.json"));
         return HttpServer::new(move || {
             App::new()
                 .app_data(gamelib.clone())
@@ -172,7 +144,7 @@ async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<GameLibr
         Err(_) => return HttpResponse::InternalServerError().body("")
     };
     // the Vec<Game> is used because Mutexes are not serializable
-    let game_lib = match ron::to_string::<Vec<Game>>(&lib) {
+    let game_lib = match serde_json::to_string::<Vec<Game>>(&lib) {
         Ok(s) => s,
         Err(_) => return HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).body("Failed to serialize")
     };

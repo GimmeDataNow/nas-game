@@ -3,10 +3,10 @@ mod error;
 mod logging;
 use error::NasError;
 mod server;
+mod types;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 
 fn main() {
-    nas_game_lib::run();
     let cmd = Command::new("nas-game")
         // .multicall(true) # no need for it yet
         .about("NAS game manager and launcher")
@@ -46,6 +46,7 @@ fn main() {
     match cmd.subcommand() {
         #[allow(unused_variables)]
         Some(("client", args)) => {
+            nas_game_lib::run();
             
         },
         Some(("server", args)) => {

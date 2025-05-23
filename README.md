@@ -24,6 +24,10 @@
 - make multiple accounts (⬜super low)
 
 
+# Image compression
+Assuming that the maximum size of the cover art will be 367x551px with no less than 5 items per row:
+using curtail to compress
+
 # Steam API
 
 Sourced from https://developer.valvesoftware.com/wiki/Steam_Web_API

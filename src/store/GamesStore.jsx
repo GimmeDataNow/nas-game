@@ -1,34 +1,26 @@
 import { createSignal } from "solid-js";
+// stored in ~/.local/share/com.nas-game.app
+import { readFile, create, writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
+import { appLocalDataDir } from '@tauri-apps/api/path';
 
 const [games, setGames] = createSignal([]);
 export { games, setGames };
 
 
-export function saveGamesToFile() {
+export async function saveGamesToFile() {
   const data = JSON.stringify(games(), null, 2);
-  const blob = new Blob([data], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "games.json";
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
-export function loadGamesFromFile(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      if (Array.isArray(parsed)) {
-        setGames(parsed);
-      } else {
-        console.error("Invalid file format");
-      }
-    } catch (err) {
-      console.error("Failed to parse JSON:", err);
-    }
-  };
-  reader.readAsText(file);
+// this still load every time the page is visited
+export async function loadGamesFromFile(file) {
+  try {
+    const contents = await readFile(file, { baseDir: BaseDirectory.AppLocalData });
+    const decoder = new TextDecoder("utf-8");
+    const text = decoder.decode(contents);
+    const data = JSON.parse(text);
+    return data;
+  } catch (err) {
+    console.error("Error loading games:", err);
+    return [];
+  }
 }
