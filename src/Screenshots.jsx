@@ -3,7 +3,7 @@ import { createSignal } from "solid-js";
 import logo from "./assets/logo.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
-import TopMenu from "./TopMenu.jsx";
+import TopMenu from "./components/TopMenu.jsx";
 
 function App() {
 

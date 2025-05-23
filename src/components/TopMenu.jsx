@@ -1,13 +1,13 @@
 /* @refresh reload */
 import { A } from "@solidjs/router";
-import Download from './assets/download.svg';
-import Palette from './assets/palette.svg';
-import Clock from './assets/clock.svg';
-import Cloud from './assets/cloud.svg';
-import Reload from './assets/refresh-cw.svg';
-import Close from './assets/x.svg';
-import Square from './assets/square.svg';
-import Minus from './assets/minus.svg';
+import Download from './../assets/download.svg';
+import Palette from './../assets/palette.svg';
+import Clock from './../assets/clock.svg';
+import Cloud from './../assets/cloud.svg';
+import Reload from './../assets/refresh-cw.svg';
+import Close from './../assets/x.svg';
+import Square from './../assets/square.svg';
+import Minus from './../assets/minus.svg';
 
 Reload
 import "./TopMenu.css";
