@@ -13,6 +13,7 @@ import LibraryItem from './components/LibraryItem.jsx';
 
 import { createSignal, onMount } from "solid-js";
 import { games, setGames, loadGamesFromFile, saveGamesToFile } from "./store/GamesStore.jsx";
+import { mkdir, exists, BaseDirectory } from '@tauri-apps/plugin-fs';
 
 function App() {
 
@@ -22,6 +23,10 @@ function App() {
 
   // on mount load the games and update the signal
   onMount(async () => {
+    const tokenExists = await exists('images', { baseDir: BaseDirectory.AppLocalData });
+    if (!tokenExists) {
+      await mkdir('images', { baseDir: BaseDirectory.AppLocalData });
+    };
     const loadedGames = await loadGamesFromFile("./games.json");
     setGames(loadedGames); 
   });

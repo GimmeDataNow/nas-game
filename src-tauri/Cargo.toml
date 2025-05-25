@@ -37,4 +37,6 @@ ron = "0.8"
 colored = "2"
 chrono = "0.4.38"
 tauri-plugin-fs = "2"
+image = "0.25.6"
+webp = "0.3.0"
 

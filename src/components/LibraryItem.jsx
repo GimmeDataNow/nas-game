@@ -1,28 +1,47 @@
 /* @refresh reload */
 import { createSignal, onMount } from "solid-js";
-const images = import.meta.glob('./../assets/*.{webp,png,jpg,jpeg}', { import: 'default' });
-
 import fallbackImg from './../assets/Hollow_Knight_cover_art.webp';
 import ExternalLink  from "./../assets/external-link.svg"; 
 import Play from "./../assets/play.svg"; 
 
-export async function getImagePath(filename) {
-  for (const path in images) {
-    if (path.endsWith(filename)) {
-      console.log(`Attempting to import image: ${path}`);
-      try {
-        const mod = await images[path]();
-        console.log(`Resolved ${filename} to ${mod}`);
-        return mod;
-      } catch (err) {
-        console.error(`Error loading image: ${filename}`, err);
-      }
-    }
+import { appLocalDataDir, join } from '@tauri-apps/api/path';
+import { readDir, readFile , BaseDirectory } from '@tauri-apps/plugin-fs';
+import { exists } from "@tauri-apps/plugin-fs";
+
+
+
+function getMimeType(filename) {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    default:
+      // octet-stream tell the browser that it is an unidentified mime type
+      // browser usually downlaod this file type. This might be an issue later
+      return 'application/octet-stream';
   }
-  console.warn(`Image not found for filename: ${filename}`);
-  return null;
 }
 
+
+export async function getImagePath(filename) {
+  try {
+    // get full path cause tauri is being annoying about it
+    const fullPath = await join(await appLocalDataDir(), 'images', filename);
+    const fileBuffer = await readFile(fullPath);
+
+  
+    const blob = new Blob([new Uint8Array(fileBuffer)], { type: getMimeType(filename) });
+    return URL.createObjectURL(blob);
+  } catch (err) {
+    console.error(`Failed to load image from AppLocalData: ${filename}`, err);
+    return null;
+  }
+}
 
 function Card(props) {
   const title = () => props.title ?? "Default Title";

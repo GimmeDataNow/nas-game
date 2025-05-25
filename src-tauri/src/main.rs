@@ -40,6 +40,13 @@ fn main() {
                         .action(ArgAction::SetTrue)
                         .help("generate default values for the server") // TODO: change it to a sub commmand for additional args
                 )
+                .arg(
+                    Arg::new("optimize-images")
+                        .short('o')
+                        .long("optimize-images")
+                        .action(ArgAction::SetTrue)
+                        .help("optimize images") // TODO: change it to a sub commmand for additional args
+                )
         ).get_matches();
         
 
