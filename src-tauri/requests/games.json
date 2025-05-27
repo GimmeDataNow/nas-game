@@ -1,0 +1,93 @@
+[
+  {
+    "title": "Hollow Knight",
+    "state": "Installed",
+    "status": "Completed",
+    "time": 10000
+  },
+  {
+    "title": "Celeste",
+    "state": "Not installed",
+    "status": "Not completed",
+    "time": 1500
+  },
+  {
+    "title": "Stardew Valley",
+    "state": "Installed",
+    "status": "In progress",
+    "time": 300
+  },
+  {
+    "title": "Outer Wilds",
+    "state": "Installed",
+    "status": "Completed",
+    "time": 20000
+  },
+  {
+    "title": "Dead Cells",
+    "state": "Installed",
+    "status": "In progress",
+    "time": 4200
+  },
+  {
+    "title": "Hades",
+    "state": "Not installed",
+    "status": "Completed",
+    "time": 9500
+  },
+  {
+    "title": "Terraria",
+    "state": "Installed",
+    "status": "Not completed",
+    "time": 780
+  },
+  {
+    "title": "Undertale",
+    "state": "Installed",
+    "status": "Completed",
+    "time": 600
+  },
+  {
+    "title": "The Binding of Isaac",
+    "state": "Not installed",
+    "status": "In progress",
+    "time": 5200
+  },
+  {
+    "title": "Slay the Spire",
+    "state": "Installed",
+    "status": "Completed",
+    "time": 3100
+  },
+  {
+    "title": "Risk of Rain 2",
+    "state": "Installed",
+    "status": "Not completed",
+    "time": 2800,
+    "img": "Risk of Rain 2.png"
+  },
+  {
+    "title": "Spiritfarer",
+    "state": "Not installed",
+    "status": "Not completed",
+    "time": 150
+  },
+  {
+    "title": "Fez",
+    "state": "Installed",
+    "status": "Completed",
+    "time": 450
+  },
+  {
+    "title": "The Messenger",
+    "state": "Installed",
+    "status": "In progress",
+    "time": 2200
+  },
+  {
+    "title": "Ori and the Blind Forest",
+    "state": "Not installed",
+    "status": "Not completed",
+    "time": 670
+  }
+]

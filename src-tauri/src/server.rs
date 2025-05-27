@@ -39,17 +39,6 @@ fn expand_tilde(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-pub fn prepare_folder(path: &Path) -> Result<PathBuf, NasError>{
-    let mut new_dir = expand_tilde("~/.local/share/nas-game");
-    new_dir.push(path.to_str().unwrap());
-    if !new_dir.exists() {
-        std::fs::create_dir_all(&new_dir).map_err(|_| NasError::InvalidPath)?;
-        info!("Folder {:?} was created since it was missing", new_dir);
-    }
-    info!("Folder {:?} exists now", new_dir);
-    return Ok(new_dir)
-}
-
 pub fn default_cwd() -> PathBuf {
     let path = expand_tilde("~/.local/share/nas-game/server");
     if !path.exists() {
@@ -61,13 +50,9 @@ pub fn default_cwd() -> PathBuf {
     path
 }
 
-pub fn prepare_folder_2<P: AsRef<Path>>(path: P) -> P {
+pub fn prepare_folder<P: AsRef<Path>>(path: P) -> P {
     // just issue a warning but don't error 
-    // trace!("CWD {:?}", std::env::current_dir());
-    let _ = std::fs::create_dir(&path).map_err(|e| {
-        // std::env::current_dir() should not fail but if it does smth is seriously wrong
-        trace!("Failed to create the directory {:?} with {:?}", std::env::current_dir().unwrap().join(&path),  e); // TODO: add an early escape if this fails
-    });
+    let _ = std::fs::create_dir(&path).map_err(|e| { trace!("Failed to create the directory {:?} with {:?}", std::env::current_dir().unwrap().join(&path),  e); });
     path
 } 
 
@@ -85,27 +70,37 @@ pub fn write_server_settings(path: &Path, settings: Option<ServerSettings>) -> R
 
 pub async fn fetch_image(search_for: &str, path_out: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
-    let key = "STEAM_GRID_API_KEY";
-    let key = match env::var(key) {
-        Ok(s) => s,
-        Err(_) => "key".to_owned()
-    };
+    // get api key for steam grid
+    let key_env = "STEAM_GRID_API_KEY";
+    let key = env::var(&key_env).unwrap_or_else(|_| {
+        warn!("STEAM_GRID_API_KEY is not set, using default value of 'key'");
+        "key".to_string()
+    });
     trace!("STEAM_GRID_API_KEY is {:?}", key);
     
+    // stearch for the game
     let client = Client::new(key);
     let games = client.search(search_for).await?;
     let first_game = games.iter().next().ok_or("No games found")?;
     let images = client.get_images_for_id(first_game.id, &Grid(None)).await?;
 
-    // check if the path is valid then try to download the image
-    // let _ = prepare_folder(path_out);
+    // get get the file extensions in a scuffed manner
+    let temp = PathBuf::from(&images[0].url);
+    let temp_1 = temp.extension().unwrap();
+    info!("The file extension is: {:?}", &temp_1);
+    let complete_path = path_out.join(search_for.to_owned() + "." + temp_1.to_str().unwrap());
+    trace!("The complete path is: {:?}", complete_path);
+
+    // get the image
     let response = reqwest::get(&images[0].url).await?;
     if response.status().is_success() {
-        let mut dest = fs::File::create("new_image_name.png")?;
+
+        let mut dest = fs::File::create(complete_path)?;
         let bytes = response.bytes().await?;
         let mut content = bytes.as_ref();
+
         std::io::copy(&mut content, &mut dest)?;
-        info!("Image saved as new_image_name.png");
+        info!("Image saved as {}.{:?}", search_for, temp_1);
     } else {
         error!("Failed to fetch image: {}", response.status());
     }
@@ -123,7 +118,7 @@ pub fn optimize_image(path_in: &Path, path_out: &Path, target_dimension: &Option
             return;
         }
     };
-    // let (w, h) = img.dimensions();
+    
     let (w, h) = target_dimension.unwrap_or_else(|| img.dimensions());
 
     let size_factor = 1.0;
@@ -139,19 +134,16 @@ pub fn optimize_image(path_in: &Path, path_out: &Path, target_dimension: &Option
     // Encode the image at a specified quality 0-100
     let webp: WebPMemory = encoder.encode(90f32);
     // Define and write the WebP-encoded file to a given path
-    let out_path = path_out.to_str().unwrap().to_owned() + file_name.to_str().unwrap();
+    let out_path = path_out.join(file_name);
     std::fs::write(&out_path, &*webp).unwrap();
 }
 
 pub fn optimize_images(path_in: &Path, path_out: &Path) {
-    // let path_in_p = prepare_folder(path_in).unwrap();
-    // let path_out_p = prepare_folder(path_out).unwrap();
     // might error if empty
     let entries = match fs::read_dir(&path_in) {
         Ok(entries) => entries,
         Err(e) => {
-            println!("path_in: {:?}", &path_in);
-            eprintln!("Failed to read input directory: {}", e);
+            error!("Failed to read input directory {:?} with {:?}", &path_in, e);
             return;
         }
     };
@@ -185,7 +177,6 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
 
     // gen default server settings
     if args.get_flag("default") {
-        // generate and write the defaults for the server
         let _ = write_server_settings(&server_settings_path, None).unwrap_or_else(|e| {
             error!("Failed to override settings with {:?}", e); // TODO: add an early escape if this fails
         });
@@ -200,13 +191,12 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
     // does this by taking in a input directory and an output directory
     if args.get_flag("optimize-images") {
 
-        // create folder
-        prepare_folder_2("images");
+        // create folders
+        prepare_folder("images");
         std::env::set_current_dir("images").unwrap();
-
         info!("CWD is: {:?}", std::env::current_dir().unwrap());
-        prepare_folder_2("non-optimized");
-        prepare_folder_2("optimized");
+        prepare_folder("non-optimized");
+        prepare_folder("optimized");
 
         let (path_in, path_out) = (std::env::current_dir().unwrap().join("non-optimized"), std::env::current_dir().unwrap().join("optimized"));
         info!("Optimizing images at: {:?} -> {:?}", &path_in, &path_out);
@@ -218,11 +208,13 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
 
     // try to download images from steamgrid
     if args.get_flag("download-images") {
+        info!("Trying to download images");
+        // this will ERROR if images/non-optimized doesn't exist
         std::env::set_current_dir(&cwd.join("images/non-optimized")).unwrap();
-        info!("tying to download images");
-        let _ = fetch_image("celeste", Path::new("images/non-optimized")).await;
-    };
 
+        // save to the current directory
+        let _ = fetch_image("celeste", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
+    };
     
     if args.get_flag("start") {
         info!("Server started");
