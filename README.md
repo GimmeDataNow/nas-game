@@ -2,6 +2,9 @@
 
 # TODO
 
+stop using env::current_dir()
+might cause trouble in the future
+
 ## API access
 - Steam (🟥 high)
 - Gog (🟨medium)

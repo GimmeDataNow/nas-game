@@ -1,7 +1,5 @@
 // logging utils
-
 use colored::Colorize;
-use std::{fmt::Debug, time::SystemTime};
 use chrono;
 
 #[allow(dead_code)]
@@ -29,27 +27,27 @@ pub fn logging_function(lvl: LoggingLevel, str: &str) {
 
 #[macro_export]
 macro_rules! trace {
-    ( $x: expr ) => { logging_function(LoggingLevel::Trace, $x); };
+    ( $($arg:tt)* ) => { logging_function(LoggingLevel::Trace, &format!($($arg)*)); };
 }
 
 #[macro_export]
 macro_rules! info {
-    ( $x: expr ) => { logging_function(LoggingLevel::Info,  $x); };
+    ( $($arg:tt)* ) => { logging_function(LoggingLevel::Info, &format!($($arg)*)); };
 }
 
 #[macro_export]
 macro_rules! warn {
-    ( $x: expr ) => { logging_function(LoggingLevel::Warn,  $x); };
+    ( $($arg:tt)* ) => { logging_function(LoggingLevel::Warn, &format!($($arg)*)); };
 }
 
 #[macro_export]
 macro_rules! error {
-    ( $x: expr ) => { logging_function(LoggingLevel::Error, $x); };
+    ( $($arg:tt)* ) => { logging_function(LoggingLevel::Error, &format!($($arg)*)); };
 }
 
 #[macro_export]
 macro_rules! fatal {
-    ( $x: expr ) => { logging_function(LoggingLevel::Fatal, $x); };
+    ( $($arg:tt)* ) => { logging_function(LoggingLevel::Fatal, &format!($($arg)*)); };
 }
 
 

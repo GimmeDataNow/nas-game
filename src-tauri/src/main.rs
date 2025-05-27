@@ -1,10 +1,9 @@
-#![allow(unused_imports)]
+// #![allow(unused_imports)]
 mod error;
 mod logging;
-use error::NasError;
 mod server;
 mod types;
-use clap::{Arg, ArgAction, ArgMatches, Command};
+use clap::{Arg, ArgAction, Command};
 
 fn main() {
     let cmd = Command::new("nas-game")
@@ -46,6 +45,13 @@ fn main() {
                         .long("optimize-images")
                         .action(ArgAction::SetTrue)
                         .help("optimize images") // TODO: change it to a sub commmand for additional args
+                )
+                .arg(
+                    Arg::new("download-images")
+                        .short('d')
+                        .long("download-images")
+                        .action(ArgAction::SetTrue)
+                        .help("download images") // TODO: change it to a sub commmand for additional args
                 )
         ).get_matches();
         
