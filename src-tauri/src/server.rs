@@ -251,7 +251,11 @@ pub fn optimize_image(file: &Path, dir_out: &Path, target_dimension: &Option<(u3
     })?;
     let webp: WebPMemory = encoder.encode(90f32); // quality as f32
 
-    let file_name = file.file_name().unwrap_or(std::ffi::OsStr::new("fail.webp"));
+    // let file_name = file.file_name().unwrap_or(std::ffi::OsStr::new("fail.webp"));
+    // let file_name = file.file_stem().unwrap().join();
+    let stem = file.file_stem().unwrap_or(std::ffi::OsStr::new("fail"));
+    let file_name = std::ffi::OsString::from(format!("{}.webp", stem.to_string_lossy()));
+
     let out_path = dir_out.join(file_name);
 
     std::fs::write(&out_path, &*webp).map_err(|e| {
