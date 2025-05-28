@@ -6,6 +6,7 @@ pub enum NasError {
     FailedToSerialize,
     FailedToWrite,
     FailedToCreateFolder,
+    FailedToEncode,
     InvalidPath,
     Ignore,
     

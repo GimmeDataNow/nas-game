@@ -1,4 +1,4 @@
-{pkgs ? import <nixos-unstable> {}}:
+{pkgs ? import <nixos-stable> {}}:
 pkgs.mkShell {
   shellHook = ''
     alias build="cargo build"

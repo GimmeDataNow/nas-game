@@ -1,3 +1,7 @@
+//! This crate is for handling the server side code of the application.
+//! This means that this crate orchestrates which functions should be called,
+//! it also defines the API. 
+//!
 use crate::error::NasError;
 use crate::{trace, info, warn, error, logging::LoggingLevel, logging::logging_function};
 use crate::types::{Launcher, Game, GameLibrary};
@@ -19,6 +23,17 @@ const DEFAULT_IP_ADDR: &str = "127.0.0.1";
 const DEFAULT_IP_PORT: u16 = 53317;
 const DEFAULT_GAME_LIBRARY_CONTENTS: &str = "[]";
 
+
+/// All of the relevant server settings as a struct
+///
+/// `ServerSettings` contains all of the relevant data for the server.
+/// This includes IP, IP PORT, and maybe more.
+/// # Arguments
+/// `ìp` - This is the IP the server will be listening on
+/// `port` - This is the PORT the server will be listening on
+/// # IPv4 vs IPv6
+/// The server doesn't handle IPv6 just yet as such the struct does
+/// not support it
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServerSettings {
     #[serde(default)]
@@ -30,6 +45,19 @@ impl Default for ServerSettings {
     fn default() -> Self { Self { ip: DEFAULT_IP_ADDR.to_owned(), port: DEFAULT_IP_PORT} }
 }
 
+/// Expands the `~/` expression for relative paths on linux-like systems
+///
+/// # Return
+/// It returns a `PathBuf` which is either the absolute path or it
+/// simply returns the given path without modification if there is
+/// no `~/` present at the start of the the input path.
+///
+/// # Examples
+/// ```
+/// "~/.local" -> "/home/$USER/.local"
+/// "example/" -> "example"
+/// "example" -> "example"
+/// ```
 fn expand_tilde(path: &str) -> PathBuf {
     if path.starts_with("~/") {
         if let Ok(home) = env::var("HOME") {
@@ -39,28 +67,73 @@ fn expand_tilde(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
+/// Sets up the default working directory for the server.
+///
+/// It first generates where the working directory should be.
+/// Then it checks if the path exists and if it doesn't it
+/// creates all the paths recursively to avoid any errors.
+/// It will print an error if the path creating fails. This
+/// is because the `create_dir_all()` function will error if
+/// the path already exists. This of course shouldn't happen
+/// since it checks for the path prior thus the error will
+/// likely be of a different kind.
 pub fn default_cwd() -> PathBuf {
     let path = expand_tilde("~/.local/share/nas-game/server");
     if !path.exists() {
-        let _ = std::fs::create_dir_all(&path).map_err(|e| {
-            warn!("Failed to create the default directory {:?} with {:?}", std::env::current_dir().unwrap().join(&path),  e);
-         });
-        info!("Folder {:?} was created since it was missing", path);
+        if let Err(e) = std::fs::create_dir_all(&path) {
+            error!("Failed to create the default directory {:?} with {:?}", std::env::current_dir().unwrap().join(&path),  e);
+            return path;
+        };
+        info!("Folder {:?} was created since it was missing", &path);
     }
     path
 }
 
+/// Creates a dir in the working directory 
+///
+/// Creates a dir in the current working directory.
+/// Should `std::fs::create_dir()` fail then the error will
+/// be logged using trace. It is not uncommon for the function
+/// to error since it will often be called in duplicate
+/// contexts.
+///
+/// # Errors
+/// This will only log the error and not return the error itself. 
+///
+/// # TODO
+/// Improve the logging corresponding to the error type that
+/// `std::fs::create_dif()` returns.
 pub fn prepare_folder<P: AsRef<Path>>(path: P) -> P {
     // just issue a warning but don't error 
     let _ = std::fs::create_dir(&path).map_err(|e| { trace!("Failed to create the directory {:?} with {:?}", std::env::current_dir().unwrap().join(&path),  e); });
     path
 } 
 
+/// Read the server settings from the specified file
+///
+/// This reads the file contents and then tries to parse the
+/// results into a `ServerSettings` struct.
+///
+/// # Errors
+/// This fuction can error both at the file read and the parsing
+/// part. Should the `fs::read_to_sting()` fail then this function
+/// will map the error to be `NasError::Ignore`. The parsing error
+/// will be mapped to `NasError::FailedToReadFile`.
 pub fn get_server_settings(path: &Path) -> Result<ServerSettings, NasError> {
-    let file = fs::read_to_string(path)?;
+    let file = fs::read_to_string(path).map_err(|_| NasError::FailedToReadFile)?;
     serde_json::from_str::<ServerSettings>(&file).map_err(|_| NasError::FailedToParse)
 }
 
+/// Write server settings to a file
+///
+/// This will write the server settings if provided to the
+/// specified path. Should the server settings not be providied
+/// then it will fall back to writing the default server settings
+///
+/// # Errors
+/// It can only error at the serialization or at the file writing.
+/// As such the errors can only be `NasError::FailedToSerialize` or
+/// `NasError::FailedToWrite`
 pub fn write_server_settings(path: &Path, settings: Option<ServerSettings>) -> Result<(), NasError> {
     let settings = settings.unwrap_or_default();
     let settings_serialized = serde_json::to_string(&settings).map_err(|_| NasError::FailedToSerialize)?;
@@ -68,6 +141,35 @@ pub fn write_server_settings(path: &Path, settings: Option<ServerSettings>) -> R
     Ok(())
 }
 
+/// Fetch the image from the steam grid api based on the input
+///
+/// This function will attempt to fetch and save an image from
+/// the steam grid api. It uses the `search_for` parameter to
+/// filter the results. The first result from the results vec
+/// is used to then fetch the image and save it to the `path_out`
+/// directory
+///
+/// # Errors
+/// This fucition has many points of failure. So many that it
+/// might be best to split this function into several smaller
+/// ones to keep things simpler.
+///
+/// First and foremost the search itself can error due to
+/// network issues.
+///
+/// The second point of failure is that the search might not
+/// return any results.
+///
+/// Additional points of failure either fall into similar
+/// categories as the ones above or are results of calling
+/// `unwrap()` on the `extension()` and `to_str()` operands.
+///
+/// In other words this function returns a wide range of
+/// errors which are not being logged or handled properly.
+///
+/// # TODO
+///
+/// Improve the error handling in this function
 pub async fn fetch_image(search_for: &str, path_out: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
     // get api key for steam grid
@@ -82,13 +184,16 @@ pub async fn fetch_image(search_for: &str, path_out: &Path) -> Result<(), Box<dy
     let client = Client::new(key);
     let games = client.search(search_for).await?;
     let first_game = games.iter().next().ok_or("No games found")?;
+
+    // get the image list based on the game
     let images = client.get_images_for_id(first_game.id, &Grid(None)).await?;
+    // client.get_official_steam_images(steam_app_id)
 
     // get get the file extensions in a scuffed manner
     let temp = PathBuf::from(&images[0].url);
-    let temp_1 = temp.extension().unwrap();
-    info!("The file extension is: {:?}", &temp_1);
-    let complete_path = path_out.join(search_for.to_owned() + "." + temp_1.to_str().unwrap());
+    let extension = temp.extension().unwrap();
+    info!("The file extension is: {:?}", &extension);
+    let complete_path = path_out.join(first_game.name.to_owned() + "." + extension.to_str().unwrap());
     trace!("The complete path is: {:?}", complete_path);
 
     // get the image
@@ -100,7 +205,7 @@ pub async fn fetch_image(search_for: &str, path_out: &Path) -> Result<(), Box<dy
         let mut content = bytes.as_ref();
 
         std::io::copy(&mut content, &mut dest)?;
-        info!("Image saved as {}.{:?}", search_for, temp_1);
+        info!("Image saved as {}.{:?}", first_game.name, extension);
     } else {
         error!("Failed to fetch image: {}", response.status());
     }
@@ -108,20 +213,30 @@ pub async fn fetch_image(search_for: &str, path_out: &Path) -> Result<(), Box<dy
 }
 
 /// somehow will not override images for some reason
-pub fn optimize_image(path_in: &Path, path_out: &Path, target_dimension: &Option<(u32, u32)>) {
+///
+/// Optimizes images from one directory into another
+///
+/// This function takes in a file and a target
+/// directory. It will  optimize and save it to
+/// the `dir_out`. The images are resized to the target
+/// dimension if provided, otherwise the dimensions are
+/// preserverd.
+///
+/// # Errors
+///
+/// This function can only error with the following errors:
+/// `NasError::FailedToReadFile`, `NasError::FailedToEncode`
+/// or `NasError::FailedToWrite`. These errors are explanatory
+pub fn optimize_image(file: &Path, dir_out: &Path, target_dimension: &Option<(u32, u32)>) -> Result<(), NasError> {
 
-    let file_name = path_in.file_name().unwrap_or(std::ffi::OsStr::new("fail.webp"));
-    let img = match image::open(path_in) {
-        Ok(i) => i,
-        Err(e) => {
-            error!("Failed to open image at {:?}: {}", path_in, e);
-            return;
-        }
-    };
+    let img = image::open(file).map_err(|e| {
+        error!("Failed to read image at {:?} with {:?}", file, e);
+        NasError::FailedToReadFile
+    })?;
     
     let (w, h) = target_dimension.unwrap_or_else(|| img.dimensions());
-
     let size_factor = 1.0;
+
     let img: DynamicImage = image::DynamicImage::ImageRgba8(imageops::resize(
         &img,
         (w as f64 * size_factor) as u32,
@@ -129,21 +244,40 @@ pub fn optimize_image(path_in: &Path, path_out: &Path, target_dimension: &Option
         imageops::FilterType::Triangle,
     ));
 
-    // Create the WebP encoder for the above image
-    let encoder: Encoder = Encoder::from_image(&img).unwrap();
-    // Encode the image at a specified quality 0-100
-    let webp: WebPMemory = encoder.encode(90f32);
-    // Define and write the WebP-encoded file to a given path
-    let out_path = path_out.join(file_name);
-    std::fs::write(&out_path, &*webp).unwrap();
+    // webp encoder
+    let encoder: Encoder = Encoder::from_image(&img).map_err(|e| {
+        error!("Failed to encode the image at {:?} with {}", file, e);
+        NasError::FailedToEncode
+    })?;
+    let webp: WebPMemory = encoder.encode(90f32); // quality as f32
+
+    let file_name = file.file_name().unwrap_or(std::ffi::OsStr::new("fail.webp"));
+    let out_path = dir_out.join(file_name);
+
+    std::fs::write(&out_path, &*webp).map_err(|e| {
+        error!("Failed to write imgage to file at {:?} with {:?}", out_path, e);
+        NasError::FailedToWrite
+    })?;
+    Ok(())
 }
 
-pub fn optimize_images(path_in: &Path, path_out: &Path) {
+
+/// Iterate over all images in one directory and output the
+/// optimized images to another
+///
+/// This iterates over all files in a given directory `dir_in`,
+/// filters them and then optimizes and saves them to a target
+/// directory
+/// 
+/// # Errors
+///
+/// This
+pub fn optimize_images(dir_in: &Path, dir_out: &Path) {
     // might error if empty
-    let entries = match fs::read_dir(&path_in) {
+    let entries = match fs::read_dir(&dir_in) {
         Ok(entries) => entries,
         Err(e) => {
-            error!("Failed to read input directory {:?} with {:?}", &path_in, e);
+            error!("Failed to read input directory {:?} with {:?}", &dir_in, e);
             return;
         }
     };
@@ -152,8 +286,9 @@ pub fn optimize_images(path_in: &Path, path_out: &Path) {
         let path = entry.path();
         match path.extension().and_then(std::ffi::OsStr::to_str) {
             Some("png" | "jpg" | "webp") => {
-                info!("File found at: {:?}", &path_in);
-                optimize_image(&path, &path_out, &Some((600,900)));
+                info!("File found at: {:?}", &dir_in);
+                // ignore the errors
+                let _ = optimize_image(&path, &dir_out, &Some((600,900)));
             },
             _ => { warn!("No images were found with the correct file extension"); }
         }
@@ -169,7 +304,7 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
 
     // get server settings     
     let server_settings_path = std::env::current_dir().unwrap().join(DEFAULT_SERVER_SETTINGS_PATH);
-    info!("Server settings path is {:?}", server_settings_path);
+    // info!("Server settings path is {:?}", server_settings_path);
     let server_settings : ServerSettings = get_server_settings(&server_settings_path).unwrap_or_else( |_| {
         warn!("Server settings could not be found at {:?}", server_settings_path);
         ServerSettings::default()
