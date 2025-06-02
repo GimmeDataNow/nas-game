@@ -6,6 +6,7 @@ mod types;
 use clap::{Arg, ArgAction, Command};
 
 fn main() {
+    // nas_game_lib::run();
     let cmd = Command::new("nas-game")
         // .multicall(true) # no need for it yet
         .about("NAS game manager and launcher")

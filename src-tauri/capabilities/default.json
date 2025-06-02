@@ -10,6 +10,7 @@
     "opener:default",
 
     "fs:allow-applocaldata-read-recursive",
-    "fs:allow-applocaldata-write-recursive"
+    "fs:allow-applocaldata-write-recursive",
+    "fs:allow-mkdir"
   ]
 }

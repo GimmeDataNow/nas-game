@@ -31,7 +31,7 @@ function getMimeType(filename) {
 export async function getImagePath(filename) {
   try {
     // get full path cause tauri is being annoying about it
-    const fullPath = await join(await appLocalDataDir(), 'images', filename);
+    const fullPath = await join(await appLocalDataDir(), 'client','images' , filename);
     const fileBuffer = await readFile(fullPath);
 
   
@@ -52,9 +52,7 @@ function Card(props) {
   const [bgImage, setBgImage] = createSignal(fallbackImg);
 
   onMount(async () => {
-    if (props.imgPath) {
-    const resolvedPath = await getImagePath(props.imgPath);
-
+      const resolvedPath = await getImagePath(props.title + '.webp');
       if (resolvedPath) {
         const img = new Image();
         img.src = resolvedPath;
@@ -63,9 +61,6 @@ function Card(props) {
       } else {
         setBgImage(fallbackImg);
       }
-    } else {
-      setBgImage(fallbackImg);
-    }
   });
 
   return (

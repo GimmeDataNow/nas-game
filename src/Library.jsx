@@ -9,7 +9,7 @@ import Plus from './assets/plus.svg?url';
 import Grid2x2 from './assets/grid-2x2.svg?url';
 import List from './assets/list.svg?url';
 import Slider from './assets/sliders-horizontal.svg?url';
-import LibraryItem from './components/LibraryItem.jsx';
+import Card from './components/LibraryItem.jsx';
 
 import { createSignal, onMount } from "solid-js";
 import { games, setGames, loadGamesFromFile, saveGamesToFile } from "./store/GamesStore.jsx";
@@ -62,8 +62,9 @@ function App() {
         </div>
       </div>            
       <div class="library-list">
+        
         {filteredGames().map(game => (
-          <LibraryItem title={game.title} state={game.state} status={game.status} time={game.time} imgPath={game.img}/>
+          <Card title={game.title} state={game.state} status={game.status} time={game.time} imgPath={game.img}/>
         ))}
       </div>
     </main>

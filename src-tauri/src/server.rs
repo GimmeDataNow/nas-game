@@ -77,6 +77,10 @@ fn expand_tilde(path: &str) -> PathBuf {
 /// the path already exists. This of course shouldn't happen
 /// since it checks for the path prior thus the error will
 /// likely be of a different kind.
+///
+/// # Path
+///
+/// Resolves to: let path = expand_tilde("~/.local/share/nas-game/server");
 pub fn default_cwd() -> PathBuf {
     let path = expand_tilde("~/.local/share/nas-game/server");
     if !path.exists() {
@@ -353,6 +357,11 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
 
         // save to the current directory
         let _ = fetch_image("celeste", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
+        let _ = fetch_image("Hollow Knight", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
+        let _ = fetch_image("Risk of rain 2", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
+        let _ = fetch_image("outer wilds", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
+        let _ = fetch_image("Hades", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
+        let _ = fetch_image("terraria", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
     };
     
     if args.get_flag("start") {
@@ -385,6 +394,7 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
                 .service(add_dummy_get)
                 .service(add_to_games)
                 .service(save_library)
+                .service(download_images)
         })
         .bind((server_settings.ip, server_settings.port))?
         .run()
@@ -439,5 +449,33 @@ async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<GameLibr
         Err(_) => return HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).body("Failed to write to file")
     }
     info!("Saved in-memory library to {:?}", filelocation.as_path());
+    HttpResponse::build(StatusCode::OK).body("library has been saved")
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct GameNameRequest {
+    games: Vec<String>,
+}
+
+#[post("/download_images")]
+async fn download_images(data: web::Json<GameNameRequest>) -> impl Responder {
+
+    let path = default_cwd().join("images").join("non-optimized");
+    println!("{:?}", data);
+    for item in &data.games {
+        let a = fetch_image(&item, &path).await;
+        println!("{:?}", a);
+    };
+
+    HttpResponse::build(StatusCode::OK).body("library has been saved")
+}
+
+#[post("/optimize_images_server")]
+async fn optimize_images_server() -> impl Responder {
+
+    let dir_in = default_cwd().join("images").join("non-optimized");
+    let dir_out = default_cwd().join("images").join("non-optimized");
+    optimize_images(&dir_in, &dir_out);
+
     HttpResponse::build(StatusCode::OK).body("library has been saved")
 }
