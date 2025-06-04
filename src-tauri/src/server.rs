@@ -1,10 +1,10 @@
 //! This crate is for handling the server side code of the application.
 //! This means that this crate orchestrates which functions should be called,
 //! it also defines the API. 
-//!
 use crate::error::NasError;
 use crate::{trace, info, warn, error, logging::LoggingLevel, logging::logging_function};
-use crate::types::{Launcher, Game, GameLibrary};
+use crate::types::{Launcher, Game, GameLibrary, GameNameRequest};
+
 use clap::ArgMatches;
 use std::{fs, env};
 use std::sync::Mutex;
@@ -16,6 +16,7 @@ use image::*;
 use webp::*;
 use steamgriddb_api::{Client, query_parameters::QueryType::Grid};
 use reqwest;
+use futures::stream::{self, StreamExt};
 
 const DEFAULT_GAME_LIB_PATH: &str = "game_library.json";
 const DEFAULT_SERVER_SETTINGS_PATH: &str = "server_settings.json";
@@ -216,8 +217,6 @@ pub async fn fetch_image(search_for: &str, path_out: &Path) -> Result<(), Box<dy
     Ok(())
 }
 
-/// somehow will not override images for some reason
-///
 /// Optimizes images from one directory into another
 ///
 /// This function takes in a file and a target
@@ -253,7 +252,7 @@ pub fn optimize_image(file: &Path, dir_out: &Path, target_dimension: &Option<(u3
         error!("Failed to encode the image at {:?} with {}", file, e);
         NasError::FailedToEncode
     })?;
-    let webp: WebPMemory = encoder.encode(90f32); // quality as f32
+    let webp: WebPMemory = encoder.encode(85f32); // quality as f32
 
     // let file_name = file.file_name().unwrap_or(std::ffi::OsStr::new("fail.webp"));
     // let file_name = file.file_stem().unwrap().join();
@@ -279,9 +278,8 @@ pub fn optimize_image(file: &Path, dir_out: &Path, target_dimension: &Option<(u3
 /// 
 /// # Errors
 ///
-/// This
+/// This will not error and it instead only log any issues.
 pub fn optimize_images(dir_in: &Path, dir_out: &Path) {
-    // might error if empty
     let entries = match fs::read_dir(&dir_in) {
         Ok(entries) => entries,
         Err(e) => {
@@ -294,15 +292,29 @@ pub fn optimize_images(dir_in: &Path, dir_out: &Path) {
         let path = entry.path();
         match path.extension().and_then(std::ffi::OsStr::to_str) {
             Some("png" | "jpg" | "webp") => {
-                info!("File found at: {:?}", &dir_in);
                 // ignore the errors
-                let _ = optimize_image(&path, &dir_out, &Some((600,900)));
+                // limit the size of the image since it likely won't
+                // exeed an image size of 308x461 ± x% on a 1440p monitor
+                let _ = optimize_image(&path, &dir_out, &Some((308,461)));
             },
             _ => { warn!("No images were found with the correct file extension"); }
         }
     }
 }
 
+/// Starts the server. Will change behaviour based on the flags.
+///
+/// This function sets up the working directories and starts
+/// the server. Depending on the flags that were provided
+/// using the command line it may trigger additional behaviour.
+///
+/// # Errors
+///
+/// The http server might error
+///
+/// # TODO
+///
+/// Improve this, add additional flags and functions.
 #[actix_web::main]
 pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
     // set and get the default cwd
@@ -348,22 +360,6 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
         std::env::set_current_dir(&cwd).unwrap();
         info!("CWD is now {:?}", std::env::current_dir().unwrap());
     };
-
-    // try to download images from steamgrid
-    if args.get_flag("download-images") {
-        info!("Trying to download images");
-        // this will ERROR if images/non-optimized doesn't exist
-        std::env::set_current_dir(&cwd.join("images/non-optimized")).unwrap();
-
-        // save to the current directory
-        let _ = fetch_image("celeste", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
-        let _ = fetch_image("Hollow Knight", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
-        let _ = fetch_image("Risk of rain 2", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
-        let _ = fetch_image("outer wilds", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
-        let _ = fetch_image("Hades", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
-        let _ = fetch_image("terraria", Path::new("")).await.map_err(|e| { error!("Failed to fetch image with: {:?}", e); });
-    };
-    
     if args.get_flag("start") {
         info!("Server started");
         let game_library_path = PathBuf::from(DEFAULT_GAME_LIB_PATH);
@@ -395,6 +391,7 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
                 .service(add_to_games)
                 .service(save_library)
                 .service(download_images)
+                .service(optimize_images_server)
         })
         .bind((server_settings.ip, server_settings.port))?
         .run()
@@ -405,7 +402,7 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
 
 #[get("/")]
 async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
+    HttpResponse::Ok().body("Is Alive")
 }
 #[post("/echo")]
 async fn echo(req_body: String) -> impl Responder {
@@ -437,7 +434,7 @@ async fn add_to_games(data: web::Data<GameLibrary>, games: web::Json<Vec<Game>>)
 async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<GameLibrary>) -> impl Responder {
     let lib = match data.collection.lock() {
         Ok(s) => s.clone(),
-        Err(_) => return HttpResponse::InternalServerError().body("")
+        Err(_) => return HttpResponse::InternalServerError().body("Failed to aquire lock on game library")
     };
     // the Vec<Game> is used because Mutexes are not serializable
     let game_lib = match serde_json::to_string::<Vec<Game>>(&lib) {
@@ -452,30 +449,37 @@ async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<GameLibr
     HttpResponse::build(StatusCode::OK).body("library has been saved")
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct GameNameRequest {
-    games: Vec<String>,
+fn image_exists(dir: &Path, name: &str) -> bool {
+    let extensions = ["webp", "jpg", "jpeg", "png"];
+    extensions.iter().any(|ext| { dir.join(format!("{}.{}", name, ext)).exists() })
 }
 
 #[post("/download_images")]
 async fn download_images(data: web::Json<GameNameRequest>) -> impl Responder {
 
     let path = default_cwd().join("images").join("non-optimized");
-    println!("{:?}", data);
-    for item in &data.games {
-        let a = fetch_image(&item, &path).await;
-        println!("{:?}", a);
-    };
+    let missing_games: Vec<_> = data.games.iter()
+        .filter(|game| !image_exists(&path, game))
+        .cloned()
+        .collect();
+    info!("The images for these games will be fetched: {:?}", missing_games);
 
-    HttpResponse::build(StatusCode::OK).body("library has been saved")
+    stream::iter(missing_games)
+        .for_each_concurrent(Some(5), |game_name| {
+            let path = path.clone();
+            async move {
+                if let Err(e) = fetch_image(&game_name, &path).await {
+                    error!("Failed to fetch image for {}: {}", game_name, e);
+                }
+            }
+        }).await;
+    HttpResponse::build(StatusCode::OK).body("Images have been downloaded")
 }
 
 #[post("/optimize_images_server")]
 async fn optimize_images_server() -> impl Responder {
-
     let dir_in = default_cwd().join("images").join("non-optimized");
-    let dir_out = default_cwd().join("images").join("non-optimized");
+    let dir_out = default_cwd().join("images").join("optimized");
     optimize_images(&dir_in, &dir_out);
-
     HttpResponse::build(StatusCode::OK).body("library has been saved")
 }

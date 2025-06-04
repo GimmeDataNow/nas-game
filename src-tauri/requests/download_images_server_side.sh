@@ -5,7 +5,27 @@ curl -H 'Content-Type: application/json' \
     "God of War",
     "Elden Ring",
     "Hades",
-    "Stardew Valley"
+    "Stardew Valley",
+    "Red Dead Redemption 2",
+    "The Witcher 3: Wild Hunt",
+    "Hollow Knight",
+    "Celeste",
+    "Death Stranding",
+    "Dark Souls III",
+    "Bloodborne",
+    "Sekiro: Shadows Die Twice",
+    "Cyberpunk 2077",
+    "Resident Evil Village",
+    "Final Fantasy VII Remake",
+    "Spider-Man: Miles Morales",
+    "Ghost of Tsushima",
+    "Disco Elysium",
+    "Persona 5 Royal",
+    "Slay the Spire",
+    "Dead Cells",
+    "Outer Wilds",
+    "Return of the Obra Dinn",
+    "It Takes Two"
   ]
 }' \
       -X POST \

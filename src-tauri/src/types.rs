@@ -1,3 +1,5 @@
+//! This crate is for defining and implementing convenience
+//! functions for types used throughout the program. 
 use serde::{Serialize, Deserialize};
 use std::sync::Mutex;
 
@@ -17,11 +19,9 @@ pub struct Game {
 }
 
 impl Game {
-    #[allow(dead_code)]
     pub fn new(launcher: Launcher, id: String) -> Self { Self { launcher, id } }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GameLibrary {
     pub collection: Mutex<Vec<Game>>, // TODO: explore if a hashset is a better choice
@@ -30,5 +30,10 @@ pub struct GameLibrary {
 impl GameLibrary {
     #[allow(dead_code)]
     pub fn new() -> Self { Self { collection: Mutex::new(Vec::new()) } }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GameNameRequest {
+    pub games: Vec<String>,
 }
 

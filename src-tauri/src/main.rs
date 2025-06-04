@@ -38,7 +38,7 @@ fn main() {
                     Arg::new("default")
                         .long("default")
                         .action(ArgAction::SetTrue)
-                        .help("generate default values for the server") // TODO: change it to a sub commmand for additional args
+                        .help("generate default values for the server")
                 )
                 .arg(
                     Arg::new("optimize-images")
@@ -47,13 +47,6 @@ fn main() {
                         .action(ArgAction::SetTrue)
                         .help("optimize images") // TODO: change it to a sub commmand for additional args
                 )
-                .arg(
-                    Arg::new("download-images")
-                        .short('d')
-                        .long("download-images")
-                        .action(ArgAction::SetTrue)
-                        .help("download images") // TODO: change it to a sub commmand for additional args
-                )
         ).get_matches();
         
 
@@ -61,7 +54,6 @@ fn main() {
         #[allow(unused_variables)]
         Some(("client", args)) => {
             nas_game_lib::run();
-            
         },
         Some(("server", args)) => {
             let _ = server::server(&args);

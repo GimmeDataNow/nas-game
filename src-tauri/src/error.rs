@@ -1,3 +1,6 @@
+//! This crate is for defining and implementing convenience
+//! functions for errors used throughout the program. The
+//! main error type is `NasError`. 
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum NasError {
