@@ -1,6 +1,6 @@
 /* @refresh reload */
 import { createSignal, onMount } from "solid-js";
-import fallbackImg from './../assets/Hollow_Knight_cover_art.webp';
+import fallbackImg from './../assets/ERROR_IMAGE.webp';
 import ExternalLink  from "./../assets/external-link.svg"; 
 import Play from "./../assets/play.svg"; 
 

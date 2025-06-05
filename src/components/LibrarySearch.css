@@ -1,9 +1,9 @@
 :root {
-  --columns: 8; /* number of columns */
-  --item-size: 150px; /* base size, scales uniformly */
-  --library-item-wrapper-width-aspect-ratio: 6;
-  --library-item-wrapper-height-aspect-ratio: 9;
-  --library-item-pop-over-stat-description-font-color: #b4b4b4;
+  /* --columns: 8; /* number of columns */
+  /* --item-size: 150px; /* base size, scales uniformly */
+  /* --library-item-wrapper-width-aspect-ratio: 6; */
+  /* --library-item-wrapper-height-aspect-ratio: 9; */
+  /* --library-item-pop-over-stat-description-font-color: #b4b4b4; */
 }
 
 
@@ -86,7 +86,7 @@
 .library-list {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(var(--columns), minmax(var(--item-size), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(max(100% / (var(--columns) + 1), 150px), 100%), 1fr));
 }
 
 .library-item-wrapper {
@@ -120,10 +120,8 @@
   padding: 10px;
 
   display: flex;
-  justify-content: space-between;
-  /* align-items: center; */
-
   flex-direction: column;
+  justify-content: space-between;
 }
 
 .library-item-wrapper:hover .library-item-pop-over-wrapper {

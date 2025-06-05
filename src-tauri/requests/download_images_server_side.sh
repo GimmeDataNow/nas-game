@@ -25,7 +25,13 @@ curl -H 'Content-Type: application/json' \
     "Dead Cells",
     "Outer Wilds",
     "Return of the Obra Dinn",
-    "It Takes Two"
+    "It Takes Two",
+    "Spiritfarer",
+    "The Binding of Isaac",
+    "Fez",
+    "Ori and the Blind Forest",
+    "Undertale",
+    "The Messenger"
   ]
 }' \
       -X POST \

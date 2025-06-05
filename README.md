@@ -2,6 +2,10 @@
 
 # TODO
 
+Change the name under which the game banners/icons/grids are being saved. (issues to to capital letters and mismatches. (such as FEZ))
+the name that is displayed on the libaray card must exactly match the image name other wise it will fail.
+If the request produces an image under a slightly different name such as game: EDITION then it will always attempt to re-download the images even if they might be present under a different name.
+
 stop using env::current_dir()
 might cause trouble in the future
 

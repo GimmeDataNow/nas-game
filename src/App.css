@@ -1,3 +1,14 @@
+:root {
+  /* --theme-color-1: #000000; */
+  --theme-color-1: #ffffff;
+
+  --columns: 8; /* number of columns */
+  --item-size: 150px; /* base size, scales uniformly */
+  --library-item-wrapper-width-aspect-ratio: 6;
+  --library-item-wrapper-height-aspect-ratio: 9;
+  --library-item-pop-over-stat-description-font-color: #b4b4b4;
+
+}
 #root {
   width: 100%;
   height: 100%;
@@ -8,6 +19,7 @@ body {
   margin: 0;
   display: flex;
   padding: 15px;
+  /* background-color: var(--theme-color-1); */
 }
 .container {
   width: 100%;

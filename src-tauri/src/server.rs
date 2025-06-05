@@ -3,48 +3,25 @@
 //! it also defines the API. 
 use crate::error::NasError;
 use crate::{trace, info, warn, error, logging::LoggingLevel, logging::logging_function};
-use crate::types::{Launcher, Game, GameLibrary, GameNameRequest};
+use crate::types::{Launcher, Game, GameLibrary, GameNameRequest, ServerSettings};
 
 use clap::ArgMatches;
 use std::{fs, env};
 use std::sync::Mutex;
 use std::path::{Path, PathBuf};
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, http::StatusCode};
-use serde::{Serialize, Deserialize};
 use serde_json;
 use image::*;
 use webp::*;
 use steamgriddb_api::{Client, query_parameters::QueryType::Grid};
+use steamgriddb_api::query_parameters::{AnimtionType, GridDimentions, GridQueryParameters, Humor, Nsfw};
 use reqwest;
 use futures::stream::{self, StreamExt};
 
 const DEFAULT_GAME_LIB_PATH: &str = "game_library.json";
 const DEFAULT_SERVER_SETTINGS_PATH: &str = "server_settings.json";
-const DEFAULT_IP_ADDR: &str = "127.0.0.1";
-const DEFAULT_IP_PORT: u16 = 53317;
 const DEFAULT_GAME_LIBRARY_CONTENTS: &str = "[]";
 
-
-/// All of the relevant server settings as a struct
-///
-/// `ServerSettings` contains all of the relevant data for the server.
-/// This includes IP, IP PORT, and maybe more.
-/// # Arguments
-/// `ìp` - This is the IP the server will be listening on
-/// `port` - This is the PORT the server will be listening on
-/// # IPv4 vs IPv6
-/// The server doesn't handle IPv6 just yet as such the struct does
-/// not support it
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ServerSettings {
-    #[serde(default)]
-    ip: String,
-    port: u16,
-}
-
-impl Default for ServerSettings {
-    fn default() -> Self { Self { ip: DEFAULT_IP_ADDR.to_owned(), port: DEFAULT_IP_PORT} }
-}
 
 /// Expands the `~/` expression for relative paths on linux-like systems
 ///
@@ -190,8 +167,16 @@ pub async fn fetch_image(search_for: &str, path_out: &Path) -> Result<(), Box<dy
     let games = client.search(search_for).await?;
     let first_game = games.iter().next().ok_or("No games found")?;
 
+    let grid_query = GridQueryParameters {
+        types: Some(&[AnimtionType::Static]),
+        dimentions: Some(&[GridDimentions::D600x900]),
+        nsfw: Some(&Nsfw::Any),
+        humor: Some(&Humor::False),
+        ..Default::default()
+    };
+
     // get the image list based on the game
-    let images = client.get_images_for_id(first_game.id, &Grid(None)).await?;
+    let images = client.get_images_for_id(first_game.id, &Grid(Some(grid_query))).await?;
     // client.get_official_steam_images(steam_app_id)
 
     // get get the file extensions in a scuffed manner
@@ -478,6 +463,7 @@ async fn download_images(data: web::Json<GameNameRequest>) -> impl Responder {
 
 #[post("/optimize_images_server")]
 async fn optimize_images_server() -> impl Responder {
+    info!("Attempting to optimize images");
     let dir_in = default_cwd().join("images").join("non-optimized");
     let dir_out = default_cwd().join("images").join("optimized");
     optimize_images(&dir_in, &dir_out);
