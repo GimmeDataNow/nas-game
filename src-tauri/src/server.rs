@@ -4,6 +4,7 @@
 use crate::error::NasError;
 use crate::{trace, info, warn, error, logging::LoggingLevel, logging::logging_function};
 use crate::types::{Launcher, Game, GameLibrary, GameNameRequest, ServerSettings};
+use crate::server_routes::*;
 
 use clap::ArgMatches;
 use std::{fs, env};
@@ -356,15 +357,15 @@ pub async fn server(args: &ArgMatches)  -> std::io::Result<()> {
                 DEFAULT_GAME_LIBRARY_CONTENTS.to_owned()
             },
         };
-        let raw_gamelib: Vec<Game> = match serde_json::from_str::<Vec<Game>>(&game_library_file) {
+        let raw_gamelib: GameLibrary = match serde_json::from_str::<GameLibrary>(&game_library_file) {
             Ok(s) => s,
             Err(_) => {
                 error!("Failed to deserialize the game library from: {:?}", game_library_path);
                 info!("Falling back to default game library");
-                Vec::new()
+                GameLibrary::default()
             }
         };
-        let gamelib = web::Data::new(GameLibrary { collection: Mutex::new(raw_gamelib)}); 
+        let gamelib = web::Data::new(Mutex::new(raw_gamelib)); 
         let filelocation = web::Data::new(PathBuf::from(DEFAULT_GAME_LIB_PATH));
         return HttpServer::new(move || {
             App::new()
@@ -394,17 +395,18 @@ async fn echo(req_body: String) -> impl Responder {
     HttpResponse::Ok().body(req_body)
 }
 #[get("/add_dummy")]
-async fn add_dummy_get(data: web::Data<GameLibrary>) -> impl Responder {
-    let mut lib = data.collection.lock().unwrap();
-    let len = lib.len().to_string().to_owned();
-    lib.push(Game::new(Launcher::Steam, len));
+async fn add_dummy_get(data: web::Data<Mutex<GameLibrary>>) -> impl Responder {
+    let lib = &mut data.lock().unwrap().collection;
+    lib.push(Game::new());
     format!("{:?}", lib)
 }
 
 #[post("/games")]
-async fn add_to_games(data: web::Data<GameLibrary>, games: web::Json<Vec<Game>>) -> impl Responder {
-    let mut lib = data.collection.lock().unwrap();
+async fn add_to_games(data: web::Data<Mutex<GameLibrary>>, games: web::Json<Vec<Game>>) -> impl Responder {
+    let lib = &mut data.lock().unwrap().collection;
     let mut counter = 0;
+    // if I were to rewirte this for loop with the filter() method then it would
+    // allow for duplicate entries to be made.
     for item in games.into_inner() {
         if !lib.contains(&item) {
             lib.push(item);
@@ -416,9 +418,9 @@ async fn add_to_games(data: web::Data<GameLibrary>, games: web::Json<Vec<Game>>)
 }
 
 #[post("/save_library")]
-async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<GameLibrary>) -> impl Responder {
-    let lib = match data.collection.lock() {
-        Ok(s) => s.clone(),
+async fn save_library(filelocation: web::Data<PathBuf>, data: web::Data<Mutex<GameLibrary>>) -> impl Responder {
+    let lib = &mut match data.lock() {
+        Ok(s) => s.collection.clone(),
         Err(_) => return HttpResponse::InternalServerError().body("Failed to aquire lock on game library")
     };
     // the Vec<Game> is used because Mutexes are not serializable

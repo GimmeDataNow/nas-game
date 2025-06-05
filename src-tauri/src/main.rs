@@ -1,8 +1,9 @@
 // #![allow(unused_imports)]
 mod error;
 mod logging;
-mod server;
 mod types;
+mod server;
+mod server_routes;
 use clap::{Arg, ArgAction, Command};
 
 fn main() {
